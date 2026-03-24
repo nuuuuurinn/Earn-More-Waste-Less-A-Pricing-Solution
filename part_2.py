@@ -23,5 +23,8 @@ def create_bakery_matrix(
         [0.0, 0.0, 1.0, 0.0],   # Sold is absorbing
         [0.0, 0.0, 0.0, 1.0]    # Waste is absorbing
     ])
-
+    row_sums = matrix_df.sum(axis=1)
+        print("\nRow Sum Check:")
+        for state, total in row_sums.items():
+            print(f"{state} sum = {total:.4f}")
     return P 
