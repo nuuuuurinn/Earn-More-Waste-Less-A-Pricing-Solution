@@ -340,6 +340,38 @@ def run_all_simulations(results_df, n_simulations=10000):
 
     return pd.DataFrame(simulation_results)
 
+# =========================================================
+# 7. Calculate Financial Impact
+# =========================================================
+
+def run_financial_impact_model(simulation_df, results_df, item_prices, cost_ratio=0.3, discount_ratio=0.5): #possible to change cost and discount assumptions here
+    # Merge simulation rates with historical fresh sales probabilities
+    results = pd.merge(simulation_df, results_df[['item', 'discount_hour', 'p_sell_fresh', 'p_to_discount']], on=['item', 'discount_hour'])
+    
+    results['full_price'] = results['item'].map(item_prices)
+    results['prod_cost'] = results['full_price'] * cost_ratio
+    results['discount_price'] = results['full_price'] * discount_ratio
+
+    # 1. BASELINE: Throw away everything that doesn't sell fresh
+    # Profit = (Fresh Sales * Price) - (Unsold Items * Cost)
+    results['baseline_profit'] = (results['p_sell_fresh'] * results['full_price']) - \
+                                 (results['p_to_discount'] * results['prod_cost'])
+
+    # 2. INTERVENTION: Use the simulation results (sold_rate) 
+    # This includes both Fresh and Discounted sales
+    # Profit = (Total Sold * Discount Price) - (Simulation Waste * Cost)
+    # Note: Using discount_price here for ALL sales simulates aggressive cannibalization
+    results['final_profit'] = (results['sold_rate'] * results['discount_price']) - \
+                               (results['waste_rate'] * results['prod_cost'])
+    
+    # 3. THE TIPPING POINT: Intervention Profit - Baseline Profit
+    results['profit_gain'] = results['final_profit'] - results['baseline_profit']
+    results['is_profitable'] = results['profit_gain'] > 0
+
+    results = results.sort_values(by='profit_gain', ascending=False)
+    
+    return results
+
 
 # =========================================================
 # 7. MAIN RUN
@@ -452,6 +484,39 @@ if __name__ == "__main__":
     print("=" * 60)
     print(f"TRADITIONAL BAGUETTE average sale time: {avg_h:02d}:{avg_m:02d}")
 
+    # =========================================================
+    # Financial Impact
+    # =========================================================
 
+    # 1. Create a map of prices from your original data
+    item_price_map = df.groupby('item')['unit_price'].mean()
 
+    # 2. Run the model using the simplified math
+    final_report = run_financial_impact_model(simulation_df, results_df, item_price_map)
 
+    # 3. Print the results to the terminal
+    print("\n" + "=" * 60)
+    print("STAGE 4: FINANCIAL TIPPING POINT ANALYSIS")
+    print("=" * 60)
+    
+    # Filter to show only items that hit the Tipping Point
+    profitable_items = final_report[final_report['is_profitable'] == True]
+    
+    if profitable_items.empty:
+        print("No profitable items found. Showing top 10 raw results:")
+        print(final_report[['item', 'discount_hour', 'profit_gain', 'is_profitable']].head(10))
+    else:
+        print("Items meeting the Tipping Point:")
+        print(profitable_items[['item', 'discount_hour', 'profit_gain', 'is_profitable']].head(20))
+        
+    print("=" * 60)
+
+    non_profitable = final_report[final_report['is_profitable'] == False]
+    
+    if non_profitable.empty:
+        print("Success: All items/hours are currently profitable.")
+    else:
+        print("The following items/hours did not meet the Tipping Point:")
+        print(non_profitable[['item', 'discount_hour', 'profit_gain', 'is_profitable']].head(20))
+        
+    print("=" * 60)
