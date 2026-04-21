@@ -33,13 +33,13 @@ def create_managerial_dashboard(report):
     ax3.axis('off')
     
     # Calculate simple sustainability metrics
-    total_items_saved = len(profitable_moves) # Proxy for items moved from 'Waste' to 'Sold'
+    total_items_saved = profitable_moves['item'].nunique() # Proxy for items moved from 'Waste' to 'Sold'
     avg_gain = profitable_moves['profit_gain'].mean() if not profitable_moves.empty else 0
     
     summary_text = (
         f"OPERATIONAL INSIGHTS & SUSTAINABILITY SCORE\n"
         f"--------------------------------------------------------------------------------------------------\n"
-        f"• STRATEGIC VIABILITY: {len(profitable_moves)} out of {len(report['item'].unique())} items hit the Tipping Point.\n"
+        f"• STRATEGIC VIABILITY: {profitable_moves['item'].nunique()} out of {len(report['item'].unique())} items hit the Tipping Point.\n"
         f"• WASTE REDUCTION: By implementing the 'Green Light' policy, we optimize inventory for {total_items_saved} categories.\n"
         f"• OPTIMAL WINDOW: Most profitable discounts were triggered between 15:00 and 17:00.\n"
         f"• ACTION PLAN: Apply a 50% discount to '{profitable_moves.iloc[0]['item'] if not profitable_moves.empty else 'N/A'}' at "
