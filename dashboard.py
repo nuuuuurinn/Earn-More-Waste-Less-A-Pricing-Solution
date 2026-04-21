@@ -42,7 +42,7 @@ def create_managerial_dashboard(report):
         f"• STRATEGIC VIABILITY: {profitable_moves['item'].nunique()} out of {len(report['item'].unique())} items hit the Tipping Point.\n"
         f"• WASTE REDUCTION: By implementing the 'Green Light' policy, we optimize inventory for {total_items_saved} categories.\n"
         f"• OPTIMAL WINDOW: Most profitable discounts were triggered between 15:00 and 17:00.\n"
-        f"• ACTION PLAN: Apply a 50% discount to '{profitable_moves.iloc[0]['item'] if not profitable_moves.empty else 'N/A'}' at "
+        f"• ACTION PLAN: Apply a 10% discount to '{profitable_moves.iloc[0]['item'] if not profitable_moves.empty else 'N/A'}' at "
         f"{profitable_moves.iloc[0]['discount_hour'] if not profitable_moves.empty else 'N/A'}:00 PM to maximize margins."
     )
     ax3.text(0.0, 0.5, summary_text, fontsize=15, family='monospace', verticalalignment='center')
