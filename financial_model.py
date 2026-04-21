@@ -5,7 +5,7 @@ import pandas as pd
 # 7. Calculate Financial Impact
 # =========================================================
 
-def run_financial_impact_model(simulation_df, results_df, item_prices, cost_ratio=0.3, discount_ratio=0.5): #possible to change cost and discount assumptions here
+def run_financial_impact_model(simulation_df, results_df, item_prices, cost_ratio=0.3, discount_ratio=0.9): #possible to change cost and discount assumptions here - changed to 0.9
     # Merge simulation rates with historical fresh sales probabilities
     results = pd.merge(simulation_df, results_df[['item', 'discount_hour', 'p_sell_fresh', 'p_to_discount']], on=['item', 'discount_hour'])
     
