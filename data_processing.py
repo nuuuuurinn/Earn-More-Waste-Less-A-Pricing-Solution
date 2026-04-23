@@ -24,13 +24,13 @@ def load_data(filepath: str, sheet_name: str = "Bakery sales") -> pd.DataFrame:
     # Remove weird / non-product / grouped entries
     df = df[df["item"] != ""]
     df = df[df["item"] != "."]
-    df = df[~df["item"].str.contains("ARTICLE", na=False)]
-    df = df[~df["item"].str.contains("DIVERS", na=False)]
-    df = df[~df["item"].str.contains("BOISSON", na=False)]
-    df = df[~df["item"].str.contains("CAFE", na=False)]
-    df = df[~df["item"].str.contains("THE", na=False)]
-    df = df[~df["item"].str.contains("PLAT", na=False)]
-    df = df[~df["item"].str.contains("FORMULE", na=False)]
+    df = df[~df["item"].str.contains("ARTICLE",  na=False)]
+    df = df[~df["item"].str.contains("DIVERS",   na=False)]
+    df = df[~df["item"].str.contains("BOISSON",  na=False)]
+    df = df[~df["item"].str.contains("CAFE",     na=False)]
+    df = df[~df["item"].str.contains("THE",      na=False)]
+    df = df[~df["item"].str.contains("PLAT",     na=False)]
+    df = df[~df["item"].str.contains("FORMULE",  na=False)]
     df = df[~df["item"].str.contains("TRAITEUR", na=False)]
 
     # Keep only valid rows
@@ -46,8 +46,14 @@ def load_data(filepath: str, sheet_name: str = "Bakery sales") -> pd.DataFrame:
         bad_rows = df[df["datetime"].isna()][["date", "time"]]
         raise ValueError(f"Some date/time values could not be parsed:\n{bad_rows.head()}")
 
-    df["hour"] = df["datetime"].dt.hour
-    df["day"] = df["datetime"].dt.date
+    df["hour"]    = df["datetime"].dt.hour
+    df["day"]     = df["datetime"].dt.date
     df["revenue"] = df["quantity"] * df["unit_price"]
+
+    # ── Day-of-week segmentation ──
+    df["day_of_week"] = pd.to_datetime(df["day"]).dt.dayofweek  # 0=Mon, 6=Sun
+    df["day_type"]    = df["day_of_week"].apply(
+        lambda x: "Weekend" if x >= 5 else "Weekday"
+    )
 
     return df

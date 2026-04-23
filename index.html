@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakery Pricing Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0f1a; color: #e5e7eb; font-family: 'DM Sans', sans-serif; padding: 24px; min-height: 100vh; }
+    h1   { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: #f9fafb; }
+
+    .header    { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .title-row { display: flex; align-items: center; gap: 10px; }
+    .accent-bar{ width: 8px; height: 32px; background: #22d3a0; border-radius: 4px; }
+    .subtitle  { color: #6b7280; font-size: 13px; margin: 4px 0 0 18px; }
+
+    .controls  { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .ctrl-group{ display: flex; gap: 8px; align-items: center; }
+    .ctrl-label{ color: #6b7280; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+
+    .kpi-row   { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+    .kpi       { background: #111827; border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 160px; border: 1px solid transparent; }
+    .kpi-label { color: #6b7280; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .kpi-value { font-size: 26px; font-weight: 800; font-family: 'Space Mono', monospace; margin: 6px 0 2px; }
+    .kpi-sub   { color: #6b7280; font-size: 12px; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab  { padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; letter-spacing: .05em; transition: all .15s; }
+    .tab.active   { background: #22d3a0; color: #000; }
+    .tab.inactive { background: #1f2937; color: #9ca3af; }
+
+    .seg-btn { padding: 5px 14px; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid; }
+    .seg-btn.all     { background: #1f2937; border-color: #6b7280; color: #d1d5db; }
+    .seg-btn.weekday { background: #1e3a5f; border-color: #60a5fa; color: #60a5fa; }
+    .seg-btn.weekend { background: #3b1f5e; border-color: #a78bfa; color: #a78bfa; }
+    .seg-btn.inactive{ background: transparent; border-color: #374151; color: #6b7280; }
+
+    .hour-btn { padding: 5px 12px; border-radius: 5px; font-size: 11px; cursor: pointer; }
+    .hour-btn.active   { background: #1f2937; border: 1px solid #f59e0b; color: #f59e0b; }
+    .hour-btn.inactive { background: transparent; border: 1px solid #374151; color: #6b7280; }
+
+    .panel     { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; }
+    .panel-title { color: #9ca3af; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+    .panel-sub   { color: #6b7280; font-size: 12px; margin-bottom: 16px; }
+
+    .grid-2    { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .full-row  { grid-column: 1 / -1; }
+
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 14px; }
+
+    .view { display: none; }
+    .view.active { display: block; }
+    canvas { max-height: 260px; }
+
+    .ab-grid   { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+    .item-list { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; overflow-y: auto; max-height: 600px; }
+    .item-list-title { color: #9ca3af; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 12px; }
+    .item-btn  { padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; cursor: pointer; font-size: 12px; transition: all .12s; border-left: 3px solid transparent; }
+    .item-btn:hover { background: #1f2937; }
+    .item-btn.active   { background: #1f2937; color: #22d3a0; font-weight: 700; border-left-color: #22d3a0; }
+    .item-btn.inactive { color: #9ca3af; }
+
+    .delta-row  { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+    .delta-card { flex: 1; min-width: 80px; background: #0a0f1a; border-radius: 8px; padding: 12px 14px; }
+    .delta-hour { color: #6b7280; font-size: 11px; margin-bottom: 4px; }
+    .delta-val  { font-size: 20px; font-weight: 800; font-family: monospace; }
+    .delta-sub  { color: #6b7280; font-size: 10px; margin-top: 2px; }
+
+    .opt-grid  { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+    .opt-right { display: flex; flex-direction: column; gap: 16px; }
+    .optimal-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .optimal-table th { color: #6b7280; font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid #1f2937; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+    .optimal-table td { padding: 10px 12px; border-bottom: 1px solid #1f2937; color: #d1d5db; }
+    .optimal-table tr:last-child td { border-bottom: none; }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+
+    .day-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 4px; }
+    .day-badge.Weekday { background: #1e3a5f; color: #60a5fa; }
+    .day-badge.Weekend { background: #3b1f5e; color: #a78bfa; }
+
+    .footer { margin-top: 20px; padding: 12px 0; border-top: 1px solid #1f2937; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .footer span { color: #4b5563; font-size: 11px; }
+
+    #loading, #error-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; gap: 12px; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #22d3a033; border-top: 3px solid #22d3a0; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Search bar */
+    .search-input { width: 100%; padding: 7px 10px; background: #0a0f1a; border: 1px solid #374151;
+      border-radius: 6px; color: #e5e7eb; font-size: 12px; outline: none; margin-bottom: 10px; }
+    .search-input::placeholder { color: #4b5563; }
+    .search-input:focus { border-color: #22d3a0; }
+
+    /* Cheat sheet */
+    .cheat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .cheat-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .cheat-table th { color: #6b7280; font-weight: 600; text-align: left; padding: 10px 14px;
+      border-bottom: 2px solid #1f2937; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    .cheat-table td { padding: 12px 14px; border-bottom: 1px solid #1f2937; color: #e5e7eb; vertical-align: middle; }
+    .cheat-table tr:last-child td { border-bottom: none; }
+    .cheat-table tr:hover td { background: #1f2937; }
+    .rank-num { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center;
+      justify-content: center; font-size: 11px; font-weight: 800; font-family: monospace; }
+    .download-btn { padding: 8px 20px; background: #22d3a0; color: #000; border: none; border-radius: 6px;
+      font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: .05em; transition: opacity .15s; }
+    .download-btn:hover { opacity: .85; }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p style="color:#6b7280">Loading pipeline data…</p>
+</div>
+
+<div id="error-msg" style="display:none">
+  <p style="color:#ff4d6d;font-size:18px;font-weight:700">Failed to load data</p>
+  <p id="error-text" style="color:#9ca3af;font-size:13px"></p>
+  <p style="color:#6b7280;font-size:12px">Make sure <code style="color:#f59e0b">python main.py</code> is running.</p>
+</div>
+
+<div id="app" style="display:none">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="title-row">
+        <div class="accent-bar"></div>
+        <h1>STOCHASTIC PRICING DASHBOARD</h1>
+      </div>
+      <p class="subtitle">Markov Chain · Monte Carlo N=10,000 · Weekday vs Weekend Segmentation</p>
+    </div>
+    <div class="controls">
+      <!-- Day type toggle -->
+      <div class="ctrl-group">
+        <span class="ctrl-label">Day Type</span>
+        <button class="seg-btn all"     onclick="setDayType('all')">All Days</button>
+        <button class="seg-btn inactive weekday-btn" onclick="setDayType('Weekday')">📅 Weekday</button>
+        <button class="seg-btn inactive weekend-btn" onclick="setDayType('Weekend')">🎉 Weekend</button>
+      </div>
+      <!-- Hour filter -->
+      <div class="ctrl-group">
+        <span class="ctrl-label">Discount Hour</span>
+        <button class="hour-btn active"   onclick="setHour('all')">All</button>
+        <button class="hour-btn inactive" onclick="setHour(15)">3 PM</button>
+        <button class="hour-btn inactive" onclick="setHour(16)">4 PM</button>
+        <button class="hour-btn inactive" onclick="setHour(17)">5 PM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi" style="border-color:#22d3a033">
+      <div class="kpi-label">Total Projected Gain</div>
+      <div class="kpi-value" id="kpi-gain" style="color:#22d3a0">—</div>
+      <div class="kpi-sub">Dynamic vs Baseline</div>
+    </div>
+    <div class="kpi" style="border-color:#60a5fa33">
+      <div class="kpi-label">Items at Tipping Point</div>
+      <div class="kpi-value" id="kpi-items" style="color:#60a5fa">—</div>
+      <div class="kpi-sub">Pass profitability threshold</div>
+    </div>
+    <div class="kpi" style="border-color:#f59e0b33">
+      <div class="kpi-label">Avg Waste Rate</div>
+      <div class="kpi-value" id="kpi-waste" style="color:#f59e0b">—</div>
+      <div class="kpi-sub">Across filtered items</div>
+    </div>
+    <div class="kpi" style="border-color:#22d3a033">
+      <div class="kpi-label">Top Recommendation</div>
+      <div class="kpi-value" id="kpi-top" style="color:#22d3a0;font-size:15px;margin-top:10px">—</div>
+      <div class="kpi-sub" id="kpi-top-sub"></div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active"   onclick="setView('overview')">📊 Overview</button>
+    <button class="tab inactive" onclick="setView('scatter')">🎯 Risk Matrix</button>
+    <button class="tab inactive" onclick="setView('ab')">⚖️ A/B Comparison</button>
+    <button class="tab inactive" onclick="setView('optimal')">💰 Optimal Discount</button>
+    <button class="tab inactive" onclick="setView('cheatsheet')">📋 Cheat Sheet</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div id="view-overview" class="view active">
+    <div class="grid-2">
+      <div class="panel">
+        <span class="badge" style="background:#052e1c;color:#22d3a0">● APPLY DISCOUNT</span>
+        <canvas id="chart-green"></canvas>
+      </div>
+      <div class="panel">
+        <span class="badge" style="background:#2d0a14;color:#ff4d6d">● AVOID DISCOUNT</span>
+        <canvas id="chart-red"></canvas>
+      </div>
+      <div class="panel full-row">
+        <div class="panel-title">Sell-Through vs Waste Rate by Item</div>
+        <canvas id="chart-stack" style="max-height:200px"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCATTER -->
+  <div id="view-scatter" class="view">
+    <div class="panel">
+      <div class="panel-title">Risk–Reward Matrix</div>
+      <div class="panel-sub">Top-left = high gain, low waste (ideal). Bottom-right = discount trap.</div>
+      <canvas id="chart-scatter" style="max-height:400px"></canvas>
+    </div>
+  </div>
+
+  <!-- A/B -->
+  <div id="view-ab" class="view">
+    <div class="ab-grid">
+      <div class="item-list">
+        <div class="item-list-title">Select Item</div>
+        <input class="search-input" id="ab-search" placeholder="🔍 Search items..." oninput="buildItemList()"/>
+        <div id="item-list-btns"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title" id="ab-title">Model A vs Model B</div>
+        <div class="panel-sub">Profit per discount hour with stochastic sell-through optimization.</div>
+        <canvas id="chart-ab" style="max-height:260px"></canvas>
+        <div class="delta-row" id="delta-row"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTIMAL DISCOUNT -->
+  <div id="view-optimal" class="view">
+    <div class="opt-grid">
+      <div class="item-list">
+        <div class="item-list-title">Select Item</div>
+        <input class="search-input" id="opt-search" placeholder="🔍 Search items..." oninput="buildItemList()"/>
+        <div id="opt-item-list"></div>
+      </div>
+      <div class="opt-right">
+        <div class="panel">
+          <div class="panel-title" id="opt-chart-title">Profit Gain vs Discount Rate</div>
+          <div class="panel-sub">Each line = one discount hour. Solid = Weekday, Dashed = Weekend. Peak = optimal discount %.</div>
+          <canvas id="chart-sensitivity" style="max-height:320px"></canvas>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Optimal Discount Summary</div>
+          <div class="panel-sub">Best discount rate per item, hour, and day type.</div>
+          <table class="optimal-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Day Type</th>
+                <th>Hour</th>
+                <th>Optimal Discount</th>
+                <th>Max Profit Gain</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody id="optimal-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHEAT SHEET -->
+  <div id="view-cheatsheet" class="view">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div>
+        <div class="panel-title" style="font-size:14px">📋 MANAGER CHEAT SHEET</div>
+        <div class="panel-sub" style="margin-bottom:0">Top actionable discount recommendations — ready to print or export.</div>
+      </div>
+      <button class="download-btn" onclick="downloadCSV()">⬇ Download CSV</button>
+    </div>
+    <div class="cheat-grid">
+      <div class="panel">
+        <div class="panel-title" style="margin-bottom:12px">🟢 TOP 10 — APPLY DISCOUNT</div>
+        <table class="cheat-table">
+          <thead><tr><th>#</th><th>Item</th><th>Day</th><th>Hour</th><th>Discount</th><th>Gain</th></tr></thead>
+          <tbody id="cheat-apply"></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="panel-title" style="margin-bottom:12px">🔴 TOP 10 — AVOID DISCOUNT</div>
+        <table class="cheat-table">
+          <thead><tr><th>#</th><th>Item</th><th>Day</th><th>Hour</th><th>Would Cost</th><th>Loss</th></tr></thead>
+          <tbody id="cheat-avoid"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <div class="panel-title" style="margin-bottom:12px">📌 QUICK REFERENCE — OPTIMAL DISCOUNT BY HOUR</div>
+      <table class="cheat-table">
+        <thead><tr><th>Item</th><th>Day Type</th><th>3 PM Optimal</th><th>4 PM Optimal</th><th>5 PM Optimal</th></tr></thead>
+        <tbody id="cheat-hourly"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Monte Carlo · N=10,000 · Elasticity-driven sensitivity · Weekday/Weekend segmented</span>
+    <span>Live data from pipeline</span>
+  </div>
+</div>
+
+<script>
+  const HOUR_LABELS  = { 15:"3 PM", 16:"4 PM", 17:"5 PM" };
+  const HOUR_COLORS  = { 15:"#22d3a0", 16:"#60a5fa", 17:"#f59e0b" };
+  const C = { green:"#22d3a0", red:"#ff4d6d", amber:"#f59e0b", blue:"#60a5fa", dim:"#374151",
+              weekday:"#60a5fa", weekend:"#a78bfa" };
+  const fmt  = v => `$${Math.abs(+v).toFixed(2)}`;
+  const pct  = v => `${(+v * 100).toFixed(1)}%`;
+
+  // ── State ──
+  let allData = [], sensitivityData = [], optimalData = [];
+  let dataIndex = {};   // pre-built filter combos: { "all_all": [...], "Weekday_15": [...] }
+  let filtered  = [];
+  let activeDayType = "all", activeHour = "all";
+  let activeItem = null, activeOptItem = null;
+  let charts = {}, filterTimer = null;
+
+  Chart.defaults.animation  = false;
+  Chart.defaults.animations = false;
+  Chart.defaults.transitions = {};
+
+  // ── Data fetch & pre-indexing ──
+  Promise.all([
+    fetch("/api/results").then(r=>r.json()),
+    fetch("/api/sensitivity").then(r=>r.json()),
+    fetch("/api/optimal").then(r=>r.json())
+  ]).then(([results, sensitivity, optimal]) => {
+    allData         = results;
+    sensitivityData = sensitivity;
+    optimalData     = optimal;
+
+    // Build all 12 filter combos once — clicking a filter is now an O(1) lookup
+    ["all","Weekday","Weekend"].forEach(dt => {
+      ["all",15,16,17].forEach(h => {
+        let d = allData;
+        if (dt !== "all") d = d.filter(x => x.day_type     === dt);
+        if (h  !== "all") d = d.filter(x => x.discount_hour === h);
+        dataIndex[`${dt}_${h}`] = d;
+      });
+    });
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("app").style.display     = "block";
+    filtered = dataIndex["all_all"];
+    updateKPIs();
+    buildOverviewCharts();
+    buildItemList();
+  }).catch(e => {
+    document.getElementById("loading").style.display  = "none";
+    document.getElementById("error-msg").style.display = "flex";
+    document.getElementById("error-text").textContent  = e.message;
+  });
+
+  // ── Filter controls ──
+  function setDayType(dt) {
+    activeDayType = dt;
+    document.querySelector(".seg-btn.all").className         = "seg-btn " + (dt==="all"     ? "all"     : "inactive all");
+    document.querySelector(".seg-btn.weekday-btn").className = "seg-btn " + (dt==="Weekday" ? "weekday" : "inactive weekday-btn");
+    document.querySelector(".seg-btn.weekend-btn").className = "seg-btn " + (dt==="Weekend" ? "weekend" : "inactive weekend-btn");
+    scheduleFilter();
+  }
+  function setHour(h) {
+    activeHour = h;
+    document.querySelectorAll(".hour-btn").forEach((btn,i) => {
+      btn.className = "hour-btn " + (["all",15,16,17][i]==h ? "active":"inactive");
+    });
+    scheduleFilter();
+  }
+  function scheduleFilter() {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => {
+      filtered = dataIndex[`${activeDayType}_${activeHour}`] || [];
+      updateKPIs();
+      requestAnimationFrame(buildActiveView);
+    }, 60);
+  }
+
+  function setView(v) {
+    document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
+    document.getElementById("view-"+v).classList.add("active");
+    ["overview","scatter","ab","optimal","cheatsheet"].forEach((id,i) => {
+      document.querySelectorAll(".tab")[i].className = "tab " + (id===v?"active":"inactive");
+    });
+    buildActiveView();
+  }
+
+  function buildActiveView() {
+    const id = document.querySelector(".view.active")?.id;
+    if      (id==="view-overview")    buildOverviewCharts();
+    else if (id==="view-scatter")     buildScatterChart();
+    else if (id==="view-ab")          buildABChart();
+    else if (id==="view-optimal")     { buildOptimalTable(); buildSensitivityChart(); }
+    else if (id==="view-cheatsheet")  buildCheatSheet();
+  }
+
+  function updateKPIs() {
+    const profitable = filtered.filter(d=>d.is_profitable);
+    const totalGain  = profitable.reduce((s,d)=>s+d.profit_gain,0);
+    const avgWaste   = filtered.length ? filtered.reduce((s,d)=>s+d.waste_rate,0)/filtered.length : 0;
+    const top        = [...profitable].sort((a,b)=>b.profit_gain-a.profit_gain)[0];
+    document.getElementById("kpi-gain").textContent    = `$${totalGain.toFixed(2)}`;
+    document.getElementById("kpi-items").textContent   = `${profitable.length}/${filtered.length}`;
+    document.getElementById("kpi-waste").textContent   = pct(avgWaste);
+    document.getElementById("kpi-top").textContent     = top?.item ?? "—";
+    document.getElementById("kpi-top-sub").textContent = top
+      ? `+${fmt(top.profit_gain)} @ ${HOUR_LABELS[top.discount_hour]} · ${top.day_type}` : "";
+    if (!activeItem    && top) activeItem    = top.item;
+    if (!activeOptItem && top) activeOptItem = top.item;
+  }
+
+  // Create chart once; on subsequent calls just update data in-place
+  function upsert(id, canvasId, config) {
+    if (!charts[id]) charts[id] = new Chart(document.getElementById(canvasId), config);
+    return charts[id];
+  }
+
+  function buildOverviewCharts() {
+    const profitable = [...filtered.filter(d=>d.is_profitable)].sort((a,b)=>b.profit_gain-a.profit_gain).slice(0,6);
+    const risky      = [...filtered.filter(d=>!d.is_profitable)].sort((a,b)=>a.profit_gain-b.profit_gain).slice(0,6);
+    const sorted     = [...filtered].sort((a,b)=>b.sold_rate-a.sold_rate).slice(0,20);
+    const hBarOpts   = {indexAxis:"y",responsive:true,animation:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:"#6b7280",callback:v=>`$${v}`},grid:{color:"#1f2937"}},
+              y:{ticks:{color:"#d1d5db"},grid:{display:false}}}};
+
+    const g = upsert("green","chart-green",{type:"bar",
+      data:{labels:[],datasets:[{label:"Profit Gain",data:[],backgroundColor:[],borderRadius:4}]},options:hBarOpts});
+    g.data.labels=profitable.map(d=>d.item);
+    g.data.datasets[0].data=profitable.map(d=>d.profit_gain);
+    g.data.datasets[0].backgroundColor=profitable.map((_,i)=>`rgba(34,211,160,${1-i*0.12})`);
+    g.update('none');
+
+    const r = upsert("red","chart-red",{type:"bar",
+      data:{labels:[],datasets:[{label:"Profit Loss",data:[],backgroundColor:[],borderRadius:4}]},options:hBarOpts});
+    r.data.labels=risky.map(d=>d.item);
+    r.data.datasets[0].data=risky.map(d=>d.profit_gain);
+    r.data.datasets[0].backgroundColor=risky.map((_,i)=>`rgba(255,77,109,${1-i*0.12})`);
+    r.update('none');
+
+    const s = upsert("stack","chart-stack",{type:"bar",
+      data:{labels:[],datasets:[
+        {label:"Sell Rate", data:[],backgroundColor:C.green,stack:"s"},
+        {label:"Waste Rate",data:[],backgroundColor:C.red,  stack:"s",borderRadius:{topLeft:4,topRight:4}}
+      ]},
+      options:{responsive:true,animation:false,plugins:{legend:{labels:{color:"#9ca3af"}}},
+        scales:{x:{ticks:{color:"#9ca3af",font:{size:9},maxRotation:30},grid:{display:false}},
+                y:{ticks:{color:"#6b7280",callback:v=>pct(v)},max:1,grid:{color:"#1f2937"}}}}});
+    s.data.labels=sorted.map(d=>d.item);
+    s.data.datasets[0].data=sorted.map(d=>d.sold_rate);
+    s.data.datasets[1].data=sorted.map(d=>d.waste_rate);
+    s.update('none');
+  }
+
+  function buildScatterChart() {
+    const map={};
+    filtered.forEach(d=>{
+      if(!map[d.item]) map[d.item]={gains:[],waste:[]};
+      map[d.item].gains.push(d.profit_gain);
+      map[d.item].waste.push(d.waste_rate);
+    });
+    const pts=Object.entries(map).map(([item,v])=>({
+      x:v.waste.reduce((a,b)=>a+b,0)/v.waste.length,
+      y:v.gains.reduce((a,b)=>a+b,0)/v.gains.length,label:item}));
+    const sc = upsert("scatter","chart-scatter",{type:"scatter",
+      data:{datasets:[{data:[],backgroundColor:[],pointRadius:8,pointHoverRadius:11}]},
+      options:{responsive:true,animation:false,plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>{const d=ctx.raw;
+          return [`${d.label}`,`Avg Gain: ${fmt(d.y)}`,`Avg Waste: ${pct(d.x)}`];}}}},
+        scales:{
+          x:{title:{display:true,text:"Avg Waste Rate →",color:"#6b7280"},ticks:{color:"#6b7280",callback:v=>pct(v)},grid:{color:"#1f2937"}},
+          y:{title:{display:true,text:"Avg Profit Gain ($) →",color:"#6b7280"},ticks:{color:"#6b7280",callback:v=>`$${v.toFixed(1)}`},grid:{color:"#1f2937"}}
+        }}});
+    sc.data.datasets[0].data=pts;
+    sc.data.datasets[0].backgroundColor=pts.map(d=>d.y>0?C.green+"cc":C.red+"cc");
+    sc.update('none');
+  }
+
+  // ── Item lists with event delegation ──
+  function buildItemList() {
+    const allItems=[...new Set(allData.map(d=>d.item))].sort();
+    const abQ =(document.getElementById("ab-search") ?.value||"").toLowerCase();
+    const optQ=(document.getElementById("opt-search")?.value||"").toLowerCase();
+    document.getElementById("item-list-btns").innerHTML=
+      allItems.filter(i=>i.toLowerCase().includes(abQ))
+        .map(i=>`<div class="item-btn ${i===activeItem?"active":"inactive"}" data-item="${i}">${i}</div>`).join("");
+    document.getElementById("opt-item-list").innerHTML=
+      allItems.filter(i=>i.toLowerCase().includes(optQ))
+        .map(i=>`<div class="item-btn ${i===activeOptItem?"active":"inactive"}" data-item="${i}">${i}</div>`).join("");
+  }
+  document.addEventListener("click",e=>{
+    const btn=e.target.closest(".item-btn");
+    if(!btn) return;
+    const item=btn.dataset.item;
+    if(btn.closest("#item-list-btns")){activeItem=item;   buildItemList();buildABChart();}
+    if(btn.closest("#opt-item-list")) {activeOptItem=item;buildItemList();buildSensitivityChart();}
+  });
+
+  function buildABChart() {
+    if (!activeItem) return;
+    let rows = allData.filter(d=>d.item===activeItem);
+    if (activeDayType!=="all") rows=rows.filter(d=>d.day_type===activeDayType);
+    rows=rows.sort((a,b)=>a.discount_hour-b.discount_hour);
+    document.getElementById("ab-title").textContent=
+      `Model A vs Model B — ${activeItem}`+(activeDayType!=="all"?` (${activeDayType})`:"");
+    const ab=upsert("ab","chart-ab",{type:"bar",
+      data:{labels:[],datasets:[
+        {label:"Baseline (A)",data:[],backgroundColor:C.dim,  borderRadius:4},
+        {label:"Dynamic (B)", data:[],backgroundColor:C.green,borderRadius:4}
+      ]},
+      options:{responsive:true,animation:false,plugins:{legend:{labels:{color:"#9ca3af"}}},
+        scales:{x:{ticks:{color:"#9ca3af",font:{size:10}},grid:{display:false}},
+                y:{ticks:{color:"#6b7280",callback:v=>`$${v}`},grid:{color:"#1f2937"}}}}});
+    ab.data.labels=rows.map(d=>`${HOUR_LABELS[d.discount_hour]} · ${d.day_type}`);
+    ab.data.datasets[0].data=rows.map(d=>+d.baseline_profit.toFixed(2));
+    ab.data.datasets[1].data=rows.map(d=>+d.final_profit.toFixed(2));
+    ab.update('none');
+    document.getElementById("delta-row").innerHTML=rows.map(d=>{
+      const delta=d.final_profit-d.baseline_profit, color=delta>=0?C.green:C.red;
+      return `<div class="delta-card" style="border:1px solid ${color}44">
+        <div class="delta-hour">${HOUR_LABELS[d.discount_hour]} · ${d.day_type}</div>
+        <div class="delta-val" style="color:${color}">${delta>=0?"+":""}${fmt(delta)}</div>
+        <div class="delta-sub">B vs A</div></div>`;
+    }).join("");
+  }
+
+  function buildSensitivityChart() {
+    if (!activeOptItem) return;
+    let itemData=sensitivityData.filter(d=>d.item===activeOptItem);
+    if (activeDayType!=="all") itemData=itemData.filter(d=>d.day_type===activeDayType);
+    const hours   =[...new Set(itemData.map(d=>d.discount_hour))].sort();
+    const dayTypes=activeDayType==="all"?["Weekday","Weekend"]:[activeDayType];
+    const rates   =[...new Set(itemData.map(d=>d.discount_rate))].sort((a,b)=>a-b);
+    document.getElementById("opt-chart-title").textContent=`Profit Gain vs Discount Rate — ${activeOptItem}`;
+    const peakPlugin={id:"peak",afterDraw(chart){
+      const ctx=chart.ctx,area=chart.chartArea;
+      chart.data.datasets.forEach((ds,di)=>{
+        const meta=chart.getDatasetMeta(di);
+        if(!meta.visible) return;
+        const vals=ds.data.map((v,i)=>({v,i})).filter(x=>x.v!==null);
+        if(!vals.length) return;
+        const peak=vals.reduce((a,b)=>b.v>a.v?b:a);
+        const pt=meta.data[peak.i];
+        if(!pt) return;
+        ctx.save();
+        ctx.strokeStyle=ds.borderColor+"99";ctx.setLineDash([4,3]);ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(pt.x,area.top);ctx.lineTo(pt.x,area.bottom);ctx.stroke();
+        ctx.setLineDash([]);ctx.fillStyle=ds.borderColor;
+        ctx.font="bold 10px sans-serif";ctx.textAlign="center";
+        ctx.fillText(`★ ${chart.data.labels[peak.i]}`,pt.x,area.top+(di%3)*14+10);
+        ctx.restore();
+      });
+    }};
+    const datasets=[];
+    hours.forEach(h=>dayTypes.forEach(dt=>{
+      const pts=rates.map(r=>{
+        const row=itemData.find(d=>d.discount_hour===h&&d.discount_rate===r&&d.day_type===dt);
+        return row?+row.profit_gain.toFixed(3):null;
+      });
+      const color=HOUR_COLORS[h]||"#fff";
+      datasets.push({label:`${HOUR_LABELS[h]} · ${dt}`,data:pts,borderColor:color,
+        backgroundColor:color+"22",borderDash:dt==="Weekend"?[5,4]:[],
+        tension:0.4,pointRadius:5,pointHoverRadius:8,fill:false});
+    }));
+    if (charts.sensitivity){charts.sensitivity.destroy();delete charts.sensitivity;}
+    charts.sensitivity=new Chart(document.getElementById("chart-sensitivity"),{
+      type:"line",data:{labels:rates.map(r=>`${r}% off`),datasets},plugins:[peakPlugin],
+      options:{responsive:true,animation:false,
+        plugins:{legend:{labels:{color:"#9ca3af",boxWidth:20}},
+          tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.parsed.y)} profit gain`}}},
+        scales:{
+          x:{ticks:{color:"#9ca3af"},grid:{color:"#1f2937"},title:{display:true,text:"Discount Rate →",color:"#6b7280"}},
+          y:{ticks:{color:"#6b7280",callback:v=>`$${v}`},grid:{color:"#1f2937"},title:{display:true,text:"Profit Gain ($) →",color:"#6b7280"}}
+        }}});
+  }
+
+  function buildOptimalTable() {
+    let data=[...optimalData];
+    if (activeDayType!=="all") data=data.filter(d=>d.day_type===activeDayType);
+    data.sort((a,b)=>b.max_profit_gain-a.max_profit_gain);
+    if (data.length>0&&!activeOptItem) activeOptItem=data[0].item;
+    buildItemList();
+    document.getElementById("optimal-table-body").innerHTML=data.map(d=>{
+      const ok=d.max_profit_gain>0,color=ok?C.green:C.red,dtCls=d.day_type==="Weekend"?"Weekend":"Weekday";
+      return `<tr>
+        <td style="font-weight:600">${d.item}</td>
+        <td><span class="day-badge ${dtCls}">${d.day_type}</span></td>
+        <td>${HOUR_LABELS[d.discount_hour]||d.discount_hour}</td>
+        <td style="color:${C.amber};font-family:monospace;font-weight:700">${d.optimal_discount_pct}% off</td>
+        <td style="color:${color};font-family:monospace">${ok?"+":""}${fmt(d.max_profit_gain)}</td>
+        <td><span class="pill" style="background:${color}22;color:${color}">${ok?"✓ Discount":"✗ Avoid"}</span></td>
+      </tr>`;
+    }).join("");
+  }
+
+  function buildCheatSheet() {
+    let data=[...optimalData];
+    if (activeDayType!=="all") data=data.filter(d=>d.day_type===activeDayType);
+    const apply=data.filter(d=>d.max_profit_gain>0).sort((a,b)=>b.max_profit_gain-a.max_profit_gain).slice(0,10);
+    const avoid=data.filter(d=>d.max_profit_gain<=0).sort((a,b)=>a.max_profit_gain-b.max_profit_gain).slice(0,10);
+    const rankRow=(d,i,mode)=>{
+      const color=mode==="apply"?C.green:C.red,dtCls=d.day_type==="Weekend"?"Weekend":"Weekday";
+      const val=mode==="apply"
+        ?`<span style="color:${C.green};font-family:monospace;font-weight:700">+${fmt(d.max_profit_gain)}</span>`
+        :`<span style="color:${C.red};font-family:monospace;font-weight:700">${fmt(d.max_profit_gain)}</span>`;
+      return `<tr><td><span class="rank-num" style="background:${color}22;color:${color}">${i+1}</span></td>
+        <td style="font-weight:600;font-size:12px">${d.item}</td>
+        <td><span class="day-badge ${dtCls}">${d.day_type}</span></td>
+        <td style="color:#9ca3af">${HOUR_LABELS[d.discount_hour]||d.discount_hour}</td>
+        <td style="color:${C.amber};font-family:monospace;font-weight:700">${d.optimal_discount_pct}% off</td>
+        <td>${val}</td></tr>`;
+    };
+    document.getElementById("cheat-apply").innerHTML=apply.map((d,i)=>rankRow(d,i,"apply")).join("");
+    document.getElementById("cheat-avoid").innerHTML=avoid.map((d,i)=>rankRow(d,i,"avoid")).join("");
+    const dayTypes=activeDayType==="all"?["Weekday","Weekend"]:[activeDayType];
+    const items=[...new Set(data.map(d=>d.item))].sort();
+    document.getElementById("cheat-hourly").innerHTML=items.flatMap(item=>
+      dayTypes.map(dt=>{
+        const rows=data.filter(d=>d.item===item&&d.day_type===dt);
+        if(!rows.length) return "";
+        const cell=h=>{
+          const row=rows.find(d=>d.discount_hour===h);
+          if(!row) return `<td style="color:#374151">—</td>`;
+          const ok=row.max_profit_gain>0,color=ok?C.green:C.red;
+          return `<td style="color:${color};font-family:monospace;font-size:12px">${row.optimal_discount_pct}% off <span style="color:#6b7280;font-size:10px">(${ok?"+":""}${fmt(row.max_profit_gain)})</span></td>`;
+        };
+        return `<tr><td style="font-weight:600;font-size:12px">${item}</td>
+          <td><span class="day-badge ${dt==="Weekend"?"Weekend":"Weekday"}">${dt}</span></td>
+          ${cell(15)}${cell(16)}${cell(17)}</tr>`;
+      })
+    ).join("");
+  }
+
+  function downloadCSV() {
+    let data=[...optimalData];
+    if (activeDayType!=="all") data=data.filter(d=>d.day_type===activeDayType);
+    data.sort((a,b)=>b.max_profit_gain-a.max_profit_gain);
+    const headers=["Item","Day Type","Hour","Optimal Discount (%)","Max Profit Gain ($)","Verdict"];
+    const csv=[headers,...data.map(d=>[d.item,d.day_type,HOUR_LABELS[d.discount_hour]||d.discount_hour,
+      d.optimal_discount_pct,d.max_profit_gain.toFixed(2),d.max_profit_gain>0?"Apply Discount":"Avoid Discount"])]
+      .map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    a.download=`bakery_recommendations_${activeDayType}.csv`;a.click();
+  }
+</script>
+</body>
+</html>

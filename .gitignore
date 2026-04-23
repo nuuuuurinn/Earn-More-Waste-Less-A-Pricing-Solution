@@ -1,0 +1,14 @@
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+
+# Ignore System files
+.DS_Store
+
+# Ignore A/B Testing Results (Your specific request)
+results_A.csv
+results_B.csv
+merged_ab_results.csv
+
+# Ignore local datasets (Optional but recommended)
+Datasets.xlsx
