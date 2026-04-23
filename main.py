@@ -31,6 +31,10 @@ def run_project():
     # A/B testing outputs
     results_A, results_B, merged_ab_results = ab_testing1.prepare_ab_testing_data(final_report)
 
+    # nurin's part
+    # True Historical Backtest using your raw data and your newly optimized rules
+    profit_A, profit_B = ab_testing1.run_historical_ab_test(df, optimal_df)
+
     return final_report, sensitivity_df, optimal_df
 
 if __name__ == "__main__":
