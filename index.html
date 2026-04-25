@@ -135,9 +135,9 @@
       <!-- Day type toggle -->
       <div class="ctrl-group">
         <span class="ctrl-label">Day Type</span>
-        <button class="seg-btn all"     onclick="setDayType('all')">All Days</button>
-        <button class="seg-btn inactive weekday-btn" onclick="setDayType('Weekday')">📅 Weekday</button>
-        <button class="seg-btn inactive weekend-btn" onclick="setDayType('Weekend')">🎉 Weekend</button>
+        <button id="btn-all"     class="seg-btn all"     onclick="setDayType('all')">All Days</button>
+        <button id="btn-weekday" class="seg-btn inactive" onclick="setDayType('Weekday')">📅 Weekday</button>
+        <button id="btn-weekend" class="seg-btn inactive" onclick="setDayType('Weekend')">🎉 Weekend</button>
       </div>
       <!-- Hour filter -->
       <div class="ctrl-group">
@@ -357,9 +357,9 @@
   // ── Filter controls ──
   function setDayType(dt) {
     activeDayType = dt;
-    document.querySelector(".seg-btn.all").className         = "seg-btn " + (dt==="all"     ? "all"     : "inactive all");
-    document.querySelector(".seg-btn.weekday-btn").className = "seg-btn " + (dt==="Weekday" ? "weekday" : "inactive weekday-btn");
-    document.querySelector(".seg-btn.weekend-btn").className = "seg-btn " + (dt==="Weekend" ? "weekend" : "inactive weekend-btn");
+    document.getElementById("btn-all").className     = "seg-btn " + (dt==="all"     ? "all"     : "inactive");
+    document.getElementById("btn-weekday").className = "seg-btn " + (dt==="Weekday" ? "weekday" : "inactive");
+    document.getElementById("btn-weekend").className = "seg-btn " + (dt==="Weekend" ? "weekend" : "inactive");
     scheduleFilter();
   }
   function setHour(h) {
