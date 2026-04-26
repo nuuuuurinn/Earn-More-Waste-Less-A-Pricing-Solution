@@ -116,70 +116,62 @@ def prepare_ab_testing_data(financial_results: pd.DataFrame):
 
 ## nurin's part
 
-def run_historical_ab_test(df, optimal_df):
+def run_historical_ab_test(df, sensitivity_df, results_df):
     """
-    Runs a true chronological backtest:
-    Uses the first 16 months to 'train' and the last 5 months to 'test'.
+    Uses the project's actual Markov and Simulation outputs to 
+    calculate profit, removing all hardcoded placeholders.
     """
     import numpy as np
 
-    # 1. Ensure date is datetime
+    # 1. Prepare Data
     df['date'] = pd.to_datetime(df['date'])
-    
-    # 2. Split Data Chronologically
-    split_date = pd.to_datetime("2022-05-01")
-    train_df = df[df['date'] < split_date].copy()
+    split_date = pd.to_datetime("2022-01-01")
     test_df = df[df['date'] >= split_date].copy()
+    
+    # Identify the optimal strategy for each item from the sensitivity analysis
+    # We find the row with the highest profit_gain for each item
+    idx = sensitivity_df.groupby(['item', 'day_type'])['profit_gain'].idxmax()
+    best_strategies = sensitivity_df.loc[idx].copy()
 
-    print(f"\n--- HISTORICAL A/B TEST ---")
-    print(f"Training on: {train_df['date'].min().date()} to {train_df['date'].max().date()}")
-    print(f"Testing on:  {test_df['date'].min().date()} to {test_df['date'].max().date()}")
-
-    # 3. SCENARIO A: What actually happened in Summer 2022 (Baseline)
+    # 2. SCENARIO A: Baseline
+    # Use the cost_ratio from your financial_model (0.3)
     test_df['prod_cost'] = test_df['unit_price'] * 0.30
     
-    # Assume 10% Waste Buffer actually happened in reality
-    # Use standard python lowercase 'Quantity' based on dataset
-    try:
-        qty_col = 'Quantity' if 'Quantity' in test_df.columns else 'quantity'
-        
-        total_revenue_A = (test_df[qty_col] * test_df['unit_price']).sum()
-        assumed_waste_A = test_df[qty_col].sum() * 0.10
-        total_waste_cost_A = assumed_waste_A * test_df['prod_cost'].mean()
-        
-        profit_A = total_revenue_A - total_waste_cost_A
+    # Merge with results_df to get the ACTUAL Markov 'p_to_discount' (Estimated Baseline Waste)
+    # We take the mean p_to_discount for the item to represent its general waste behavior
+    baseline_waste_map = results_df.groupby('item')['p_to_discount'].mean()
+    
+    total_revenue_A = (test_df['quantity'] * test_df['unit_price']).sum()
+    total_waste_A = (test_df['quantity'].sum() * test_df['item'].map(baseline_waste_map)).sum()
+    total_waste_cost_A = total_waste_A * test_df['prod_cost'].mean()
+    
+    profit_A = total_revenue_A - total_waste_cost_A
 
-        # 4. SCENARIO B: Applying your Optimal Model to Summer 2022
-        # Use 'optimal_discount_pct' which exists in your dataframe!
-        merged_test = pd.merge(test_df, optimal_df[['item', 'discount_hour', 'optimal_discount_pct']], on='item', how='left')
-        
-        # Convert the percentage whole number (e.g., 20) to a decimal (e.g., 0.20)
-        merged_test['discount_decimal'] = merged_test['optimal_discount_pct'] / 100.0
-        
-        # Extract just the hour from the time string (e.g. '15:30:00' -> 15)
-        merged_test['sale_hour'] = pd.to_datetime(merged_test['time'], format='%H:%M:%S').dt.hour
+    # 3. SCENARIO B: Model (Applying Simulation Results)
+    # Merge test data with the specific simulation results for the optimal strategy
+    merged_test = pd.merge(test_df, best_strategies[['item', 'discount_hour', 'discount_rate', 'waste_rate']], on='item', how='left')
+    
+    merged_test['sale_hour'] = pd.to_datetime(merged_test['time'], format='%H:%M:%S').dt.hour
+    merged_test['discount_decimal'] = merged_test['discount_rate'] / 100.0
 
-        # Apply the discount if the sale happened on or after the recommended discount_hour
-        merged_test['applied_price'] = np.where(
-            (merged_test['sale_hour'] >= merged_test['discount_hour']) & (merged_test['discount_decimal'].notna()), 
-            merged_test['unit_price'] * (1 - merged_test['discount_decimal']), 
-            merged_test['unit_price']
-        )
+    # Apply the discount price to items sold after the trigger hour
+    merged_test['applied_price'] = np.where(
+        (merged_test['sale_hour'] >= merged_test['discount_hour']) & (merged_test['discount_decimal'].notna()), 
+        merged_test['unit_price'] * (1 - merged_test['discount_decimal']), 
+        merged_test['unit_price']
+    )
 
-        # Assume your strategy reduces waste from 10% to 4%
-        total_revenue_B = (merged_test[qty_col] * merged_test['applied_price']).sum()
-        assumed_waste_B = merged_test[qty_col].sum() * 0.04
-        total_waste_cost_B = assumed_waste_B * merged_test['prod_cost'].mean()
-        
-        profit_B = total_revenue_B - total_waste_cost_B
+    total_revenue_B = (merged_test['quantity'] * merged_test['applied_price']).sum()
+    
+    # Use the actual 'waste_rate' calculated by your Monte Carlo simulation
+    total_waste_B = (merged_test['quantity'].sum() * merged_test['waste_rate']).sum()
+    total_waste_cost_B = total_waste_B * merged_test['prod_cost'].mean()
+    
+    profit_B = total_revenue_B - total_waste_cost_B
 
-        print("\n--- RESULTS ---")
-        print(f"Baseline Profit (Scenario A): ${profit_A:,.2f}")
-        print(f"Model Profit (Scenario B):    ${profit_B:,.2f}")
-        print(f"Net Gain from using Model:    ${profit_B - profit_A:,.2f}\n")
-        
-        return profit_A, profit_B
-        
-    except Exception as e:
-        print(f"Error in backtest computation: {e}")
-        return 0, 0
+    print(f"\n--- HISTORICAL A/B TEST (Calculated Results) ---")
+    print(f"Baseline Profit (Scenario A): ${profit_A:,.2f}")
+    print(f"Model Profit (Scenario B):    ${profit_B:,.2f}")
+    print(f"Net Gain from using Model:    ${profit_B - profit_A:,.2f}\n")
+    
+    return profit_A, profit_B
